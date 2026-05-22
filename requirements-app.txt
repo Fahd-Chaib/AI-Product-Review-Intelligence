@@ -1,0 +1,9 @@
+﻿streamlit
+pandas
+python-dotenv
+crewai
+google-genai
+transformers
+torch
+scikit-learn
+pydantic

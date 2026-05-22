@@ -17,3 +17,20 @@ model/sentiment_distilbert/
 
 # Ignore trained model files
 model/sentiment_distilbert/
+
+# App part ignores
+.venv/
+.env
+__pycache__/
+*.pyc
+
+# Local model folder - too large for GitHub
+model/
+
+# Runtime logs and generated reports
+logs/*.jsonl
+reports/*.md
+
+# Keep empty folders
+!logs/.gitkeep
+!reports/.gitkeep
