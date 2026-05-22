@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+.venv/
+*.log
+
+# HuggingFace checkpoints
+results/checkpoint-*/
+
+# Colab folders
+sample_data/
+.config/
+
+# Ignore large trained model files
+model/sentiment_distilbert/
+
+# Ignore trained model files
+model/sentiment_distilbert/
