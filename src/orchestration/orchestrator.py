@@ -9,12 +9,16 @@ The orchestrator coordinates the full workflow:
 4. Human-in-the-loop checkpoint
 5. Report Agent
 
-This design is simple, stable, and easy to defend orally.
+It can collect reviews from:
+- user input
+- Hugging Face dataset
+- local sample CSV fallback
 """
 
 from typing import Dict, Optional
 
 from src.app_agents.crew_agents import create_agents, describe_architecture
+from src.app_tools.hf_review_collector import collect_reviews_from_huggingface
 from src.app_tools.insight_tool import generate_insights
 from src.app_tools.report_tool import generate_final_report
 from src.app_tools.review_collector import build_reviews_from_user_input, collect_reviews
@@ -49,12 +53,16 @@ class ProductReviewOrchestrator:
         self,
         product_name: str,
         max_reviews: int = 20,
-        raw_reviews: Optional[str] = None
+        raw_reviews: Optional[str] = None,
+        review_source: str = "sample_csv"
     ) -> Dict:
         """
         Run the analysis workflow until the human approval checkpoint.
 
-        The final report is not generated in this function.
+        review_source can be:
+        - sample_csv
+        - huggingface
+        - user_input
         """
         try:
             log_event(
@@ -64,7 +72,8 @@ class ProductReviewOrchestrator:
                 input_data={
                     "product_name": product_name,
                     "max_reviews": max_reviews,
-                    "has_user_reviews": bool(raw_reviews)
+                    "has_user_reviews": bool(raw_reviews),
+                    "review_source": review_source
                 }
             )
 
@@ -73,6 +82,7 @@ class ProductReviewOrchestrator:
                 raw_reviews=raw_reviews or ""
             )
 
+            # Priority 1: manual reviews pasted by the user.
             if user_reviews:
                 reviews = user_reviews[:max_reviews]
 
@@ -84,6 +94,29 @@ class ProductReviewOrchestrator:
                         "reviews_collected": len(reviews)
                     }
                 )
+
+            # Priority 2: automatic real reviews from Hugging Face.
+            elif review_source == "huggingface":
+                try:
+                    reviews = collect_reviews_from_huggingface(
+                        product_name=product_name,
+                        max_reviews=max_reviews
+                    )
+
+                except Exception as error:
+                    log_event(
+                        agent="Collector Agent",
+                        action="huggingface_failed_fallback_to_csv",
+                        status="warning",
+                        error=str(error)
+                    )
+
+                    reviews = collect_reviews(
+                        product_name=product_name,
+                        max_reviews=max_reviews
+                    )
+
+            # Priority 3: local demo fallback.
             else:
                 reviews = collect_reviews(
                     product_name=product_name,
@@ -100,6 +133,7 @@ class ProductReviewOrchestrator:
                 "analyzed_reviews": analyzed_reviews,
                 "insights": insights,
                 "architecture": self.architecture,
+                "review_source": review_source,
                 "checkpoint": "Human approval required before final report generation."
             }
 
@@ -109,7 +143,8 @@ class ProductReviewOrchestrator:
                 status="success",
                 output_data={
                     "product_name": product_name,
-                    "reviews_analyzed": len(analyzed_reviews)
+                    "reviews_analyzed": len(analyzed_reviews),
+                    "review_source": review_source
                 }
             )
 

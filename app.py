@@ -3,6 +3,7 @@ Streamlit application for AI Product Review Intelligence System.
 
 Features:
 - Product name input
+- Review source selection
 - Optional manual reviews input
 - Multi-agent orchestration
 - Sentiment percentages
@@ -41,7 +42,7 @@ def get_orchestrator() -> ProductReviewOrchestrator:
 
 def display_sentiment_metrics(insights):
     """
-    Display sentiment percentages as Streamlit metrics.
+    Display sentiment percentages.
     """
     percentages = insights["sentiment_percentages"]
 
@@ -89,18 +90,18 @@ def display_review_table(analyzed_reviews):
         ]
     )
 
-    st.dataframe(table_df, width='stretch')
+    st.dataframe(table_df, width="stretch")
 
 
 def main():
     """
-    Main Streamlit UI.
+    Main Streamlit interface.
     """
     st.title("AI Product Review Intelligence System")
 
     st.caption(
-        "Multi-agent product review analysis using CrewAI, DistilBERT sentiment model, "
-        "Gemini report generation, JSON logging and human-in-the-loop validation."
+        "Multi-agent product review analysis using CrewAI, fine-tuned DistilBERT, "
+        "Hugging Face reviews, Gemini report generation, JSON logging and human validation."
     )
 
     orchestrator = get_orchestrator()
@@ -111,7 +112,7 @@ def main():
         st.markdown(
             """
             **Orchestrator**
-            
+
             Coordinates all agents and controls the workflow.
 
             **Specialist Agents**
@@ -124,6 +125,25 @@ def main():
 
         st.divider()
 
+        st.header("Review Source")
+
+        source_choice = st.radio(
+            "Choose review source",
+            [
+                "Demo CSV",
+                "Hugging Face real reviews"
+            ]
+        )
+
+        if source_choice == "Hugging Face real reviews":
+            review_source = "huggingface"
+            st.info("The Collector Agent will fetch real Amazon reviews from Hugging Face.")
+        else:
+            review_source = "sample_csv"
+            st.info("The Collector Agent will use the local demo dataset.")
+
+        st.divider()
+
         st.header("Settings")
 
         max_reviews = st.slider(
@@ -133,21 +153,18 @@ def main():
             value=10
         )
 
-        st.info(
-            "If no manual reviews are pasted, the app uses the demo review dataset."
-        )
-
     product_name = st.text_input(
         "Product name",
-        placeholder="Example: Wireless Headphones"
+        placeholder="Example: book, headphones, coffee, watch"
     )
 
     raw_reviews = st.text_area(
         "Optional: paste your own reviews, one review per line",
         placeholder=(
+            "Manual reviews have priority over all other sources.\n"
+            "Example:\n"
             "The product is excellent and easy to use.\n"
-            "The battery life is too short.\n"
-            "Delivery was late but the quality is good."
+            "The battery life is too short."
         ),
         height=150
     )
@@ -164,7 +181,8 @@ def main():
                 analysis_result = orchestrator.run_analysis(
                     product_name=product_name,
                     max_reviews=max_reviews,
-                    raw_reviews=raw_reviews
+                    raw_reviews=raw_reviews,
+                    review_source=review_source
                 )
 
             st.session_state["analysis_result"] = analysis_result
@@ -189,6 +207,14 @@ def main():
         st.divider()
 
         st.header("Sentiment Overview")
+
+        col_a, col_b = st.columns(2)
+
+        with col_a:
+            st.info(f"Review source used: {result.get('review_source', 'unknown')}")
+
+        with col_b:
+            st.info(f"Total reviews analyzed: {insights['total_reviews']}")
 
         display_sentiment_metrics(insights)
         display_sentiment_chart(insights)
